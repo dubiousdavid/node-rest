@@ -1,9 +1,9 @@
-import { readFiles } from './parse'
+import { getDirContents, sortContents } from './parse'
 
 let run = async () => {
   let dir = process.argv[2]
-  let files = await readFiles(dir)
-  console.log(files);
+  let contents = await getDirContents(dir)
+  console.info(sortContents(contents))
 }
 
 run()

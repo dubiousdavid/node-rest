@@ -1,23 +1,24 @@
 import _ from 'lodash/fp'
 import fs from 'fs'
+import path from 'path'
 import { parse, format } from 'date-fns'
+
 let { readFile, readdir } = fs.promises
 
-export let parseRows = delimiter =>
+let splitColumns = delimiter =>
   _.flow(
     _.map(_.split(delimiter)),
     _.map(_.map(_.trim)),
   )
 
-export let parseFile = file => {
-  let rows = _.split('\n', file).slice(0, -1)
+let parseRows = rows => {
   let firstRow = _.first(rows)
   // CSV
-  if (/,/.test(firstRow)) return parseRows(',')(rows)
+  if (/,/.test(firstRow)) return splitColumns(',')(rows)
   // Pipe
-  else if (/\|/.test(firstRow)) return parseRows('|')(rows)
+  else if (/\|/.test(firstRow)) return splitColumns('|')(rows)
   // Space
-  else return parseRows(' ')(rows)
+  else return splitColumns(' ')(rows)
 }
 
 let toObject = _.zipObject([
@@ -28,36 +29,54 @@ let toObject = _.zipObject([
   'DateOfBirth',
 ])
 
-let sortByGender = _.sortBy(['Gender', 'LastName'])
-let sortByBirthdate = _.sortBy('DateOfBirth')
-let sortByLastName = _.orderBy('LastName', ['desc'])
-let formatDate = _.flow(parse, date => format(date, 'M/D/YYYY'))
+// Date formatting
+let formatDate = _.flow(
+  parse,
+  date => format(date, 'M/D/YYYY'),
+)
 let formatDates = _.map(_.update('DateOfBirth', formatDate))
 
-let sortContents = contents => {
+// Sorting
+export let sortByGender = _.flow(_.sortBy(['Gender', 'LastName']), formatDates)
+export let sortByBirthdate = _.flow(_.sortBy('DateOfBirth'), formatDates)
+export let sortByLastName = _.flow(_.orderBy('LastName', ['desc']), formatDates)
+
+// Split rows by newlines
+let splitRows = _.flow(
+  _.trimEnd,
+  _.split('\n'),
+)
+
+// Parse file content
+export let parseContent = _.flow(
+  splitRows,
+  parseRows,
+  _.map(toObject),
+)
+
+// Sort content from files
+export let sortContents = contents => {
   let records = _.flow(
-    _.map(parseFile),
+    _.map(parseContent),
     _.flatten,
-    _.map(toObject),
   )(contents)
 
   return {
-    sortedByGender: formatDates(sortByGender(records)),
-    sortedByBirthdate: formatDates(sortByBirthdate(records)),
-    sortedByLastName: formatDates(sortByLastName(records)),
+    sortedByGender: sortByGender(records),
+    sortedByBirthdate: sortByBirthdate(records),
+    sortedByLastName: sortByLastName(records),
   }
 }
 
-export let readFiles = async dir => {
+// Get content of files from directory
+export let getDirContents = async dir => {
   // Read files from directory
   let files = await readdir(dir)
 
   // Read file contents for each file
-  let contents = await _.flow(
-    _.map(file => `${dir}/${file}`),
+  return _.flow(
+    _.map(file => path.join(dir, file)),
     _.map(path => readFile(path, { encoding: 'utf8' })),
     files => Promise.all(files),
   )(files)
-
-  return sortContents(contents)
 }
