@@ -5,6 +5,7 @@
 ## CLI
 
 `npm run cli [directory]`
+
 `npm run cli examples`
 
 ## REST server
