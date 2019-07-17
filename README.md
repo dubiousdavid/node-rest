@@ -1,5 +1,7 @@
 ## Initializing
 
+Requires: Node 12.x
+
 `npm ci`
 
 ## CLI
